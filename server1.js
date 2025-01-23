@@ -318,29 +318,24 @@ app.get('/teachers', (req, res) => {
         return res.status(401).send("Unauthorized");
     }
 
-    const studentClass = 1; // Replace with actual student class from session or request
-
-    db.all("SELECT * FROM teachers WHERE subject = ? AND classes LIKE ?", [subject, `%${studentClass}%`], function(err, rows) {
+    // Get the IDs of teachers the student is already enrolled with
+    db.all("SELECT teacher_id FROM enrollments JOIN students ON enrollments.student_id = students.id WHERE students.email = ?", [studentEmail], (err, enrolledRows) => {
         if (err) {
-            return res.status(500).send("Error fetching teachers");
+            return res.status(500).send("Error fetching enrolled teachers");
         }
 
-        // Check if student is enrolled in each teacher's class
-        const promises = rows.map(teacher => new Promise((resolve, reject) => {
-            db.get("SELECT * FROM enrollments JOIN students ON enrollments.student_id = students.id WHERE enrollments.teacher_id = ? AND students.email = ?", [teacher.id, studentEmail], function(err, enrollment) {
-                if (err) {
-                    return reject(err);
-                }
-                if (!enrollment) {
-                    teacher.meet_link = null; // Remove meet link if not enrolled
-                }
-                resolve(teacher);
-            });
-        }));
+        const enrolledTeacherIds = enrolledRows.map(row => row.teacher_id);
 
-        Promise.all(promises)
-            .then(teachers => res.json(teachers))
-            .catch(err => res.status(500).send("Error processing enrollments"));
+        // Get all teachers for the subject except the ones the student is already enrolled with
+        const placeholders = enrolledTeacherIds.map(() => '?').join(',');
+        const query = `SELECT * FROM teachers WHERE subject = ? AND id NOT IN (${placeholders})`;
+        db.all(query, [subject, ...enrolledTeacherIds], (err, availableTeachers) => {
+            if (err) {
+                return res.status(500).send("Error fetching available teachers");
+            }
+
+            res.json(availableTeachers);
+        });
     });
 });
 
@@ -539,6 +534,26 @@ app.get('/teacher_ratings', (req, res) => {
             return res.status(500).send("Error fetching ratings");
         }
         res.json(rows);
+    });
+});
+app.get('/student_submissions', checkAuth, (req, res) => {
+    const studentId = req.session.user.id;
+
+    db.all("SELECT assignments.title, submissions.submission, submissions.marks, submissions.feedback FROM submissions JOIN assignments ON submissions.assignment_id = assignments.id WHERE submissions.student_id = ?", [studentId], function(err, rows) {
+        if (err) {
+            return res.status(500).send("Error fetching student submissions");
+        }
+
+        res.json(rows);
+    });
+});
+// Logout route
+app.post('/logout', (req, res) => {
+    req.session.destroy(err => {
+        if (err) {
+            return res.status(500).send('Error logging out');
+        }
+        res.sendStatus(200);
     });
 });
 // Start the server

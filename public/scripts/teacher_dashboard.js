@@ -1,4 +1,25 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const logoutButton = document.getElementById('logoutButton');
+    logoutButton.addEventListener('click', function() {
+        fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = 'index.html';
+            } else {
+                alert('Error logging out!');
+            }
+        })
+        .catch(error => {
+            console.error('Error logging out:', error);
+            alert('Error logging out!');
+        });
+    });
+
     const welcomeMessage = document.getElementById('welcome-message');
     const uploadAssignmentForm = document.getElementById('uploadAssignmentForm');
     const submissionsList = document.getElementById('submissions-list');

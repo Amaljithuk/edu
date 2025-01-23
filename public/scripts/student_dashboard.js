@@ -1,4 +1,43 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const logoutButton = document.getElementById('logoutButton');
+    const chatButton = document.getElementById('chatButton');
+    const chatModal = document.getElementById('chatModal');
+    const closeModalButton = document.querySelector('.close');
+
+    logoutButton.addEventListener('click', function() {
+        fetch('/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = 'index.html';
+            } else {
+                alert('Error logging out!');
+            }
+        })
+        .catch(error => {
+            console.error('Error logging out:', error);
+            alert('Error logging out!');
+        });
+    });
+
+    chatButton.addEventListener('click', function() {
+        chatModal.style.display = 'block';
+    });
+
+    closeModalButton.addEventListener('click', function() {
+        chatModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', function(event) {
+        if (event.target == chatModal) {
+            chatModal.style.display = 'none';
+        }
+    });
+
     const subjectList = document.getElementById('subject-list');
     const teacherList = document.getElementById('teacher-list');
     const teachersSection = document.getElementById('teachers-section');
@@ -10,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const teacherSelect = document.getElementById('teacher-id');
     const assignmentsList = document.getElementById('assignments-list');
     const assignmentsSection = document.getElementById('assignments-section');
+    const submissionsList = document.getElementById('submissions-list');
 
     // Fetch and display student dashboard data
     function fetchStudentDashboardData() {
@@ -26,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         li.innerHTML = `
                             <h4>${enrollment.teacherName} - ${enrollment.subject}</h4>
                             <p>Session Time: ${enrollment.session_time || 'Not scheduled'}</p>
-                            <p>Google Meet Link: ${enrollment.meet_link || 'Not available'}</p>
+                            <p>Google Meet Link: ${enrollment.meet_link ? `<a href="${enrollment.meet_link}" target="_blank">${enrollment.meet_link}</a>` : 'Not available'}</p>
                         `;
                         enrolledList.appendChild(li);
 
@@ -125,6 +165,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Fetch and display student submissions with feedback and marks
+    function fetchSubmissions() {
+        fetch('/student_submissions')
+            .then(response => response.json())
+            .then(data => {
+                submissionsList.innerHTML = '';
+                data.forEach(submission => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <h4>${submission.title}</h4>
+                        <p>Submission: ${submission.submission}</p>
+                        <p>Marks: ${submission.marks !== null ? submission.marks : 'Not evaluated yet'}</p>
+                        <p>Feedback: ${submission.feedback || 'No feedback yet'}</p>
+                    `;
+                    submissionsList.appendChild(li);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching submissions:', error);
+            });
+    }
+
     // Fetch and display assignments
     function fetchAssignments() {
         fetch('/view_assignments')
@@ -184,4 +246,5 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchStudentDashboardData();
     fetchAvailableSubjects();
     fetchAssignments();
+    fetchSubmissions();
 });
